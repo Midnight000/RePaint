@@ -114,7 +114,7 @@ def main(conf: conf_mgt.Default_Conf):
     eval_name = conf.get_default_eval_name()
 
     dl = conf.get_dataloader(dset=dset, dsName=eval_name)
-
+    print(dl.__len__())
     for batch in iter(dl):
 
         for k in batch.keys():

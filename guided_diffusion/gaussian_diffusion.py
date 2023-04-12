@@ -28,6 +28,8 @@ import torch as th
 
 from collections import defaultdict
 
+from PIL import Image
+
 from guided_diffusion.scheduler import get_schedule_jump
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, use_scale):
@@ -355,6 +357,7 @@ class GaussianDiffusion:
                     gt_keep_mask = conf.get_inpa_mask(x)
 
                 gt = model_kwargs['gt']
+                #想法：利用周围信息作为待修补区域的先验
 
                 alpha_cumprod = _extract_into_tensor(
                     self.alphas_cumprod, t, x.shape)
@@ -369,6 +372,15 @@ class GaussianDiffusion:
                     noise_part = noise_weight * th.randn_like(x)
 
                     weighed_gt = gt_part + noise_part
+                    #想法：利用周围信息作为待修补区域的先验
+                    gt_weight = th.sqrt(alpha_cumprod)
+                    gt_part = gt_weight * gt
+
+                    noise_weight = th.sqrt((1 - alpha_cumprod))
+                    noise_part = noise_weight * th.randn_like(x)
+
+                    weighed_x =
+                    ################################
 
                 x = (
                     gt_keep_mask * (
@@ -404,7 +416,6 @@ class GaussianDiffusion:
 
         result = {"sample": sample,
                   "pred_xstart": out["pred_xstart"], 'gt': model_kwargs.get('gt')}
-
         return result
 
     def p_sample_loop(
@@ -532,6 +543,15 @@ class GaussianDiffusion:
                         sample_idxs[t_cur] += 1
 
                         yield out
+                        # 观测每一步的预测x0
+                        # tmp_pred = out["pred_xstart"]
+                        # tmp_pred = ((tmp_pred + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        # tmp_pred = tmp_pred.permute(0, 2, 3, 1)
+                        # tmp_pred = tmp_pred.contiguous().squeeze()
+                        # tmp_pred = tmp_pred.cpu().numpy()
+                        # tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
+                        # tmp_pred.save('reverse_processing/' + 'pre' + str(t_cur) + '.jpg')
+                        #######################
 
                 else:
                     t_shift = conf.get('inpa_inj_time_shift', 1)
