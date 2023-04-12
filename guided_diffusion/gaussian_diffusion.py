@@ -379,7 +379,7 @@ class GaussianDiffusion:
                     noise_weight = th.sqrt((1 - alpha_cumprod))
                     noise_part = noise_weight * th.randn_like(x)
 
-                    weighed_x =
+                    # weighed_x =
                     ################################
 
                 x = (
