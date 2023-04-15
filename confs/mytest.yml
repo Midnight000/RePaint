@@ -81,7 +81,8 @@ data:
       offset: 0
       max_len:
       paths:
-        srs: ./log/mytest/inpainted
-        lrs: ./log/mytest/gt_masked
-        gts: ./log/mytest/gt
-        gt_keep_masks: ./log/mytest/gt_keep_mask
+        srs: ./log/half_mask/blur_compose/inpainted
+        lrs: ./log/half_mask/blur_compose/gt_masked
+        gts: ./log/half_mask/blur_compose/gt
+        gt_keep_masks: ./log/half_mask/blur_compose/gt_keep_mask
+        reverse_processing: reverse_processing/half_mask/reverse_processing_blur_compose

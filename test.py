@@ -115,8 +115,9 @@ def main(conf: conf_mgt.Default_Conf):
 
     dl = conf.get_dataloader(dset=dset, dsName=eval_name)
     print(dl.__len__())
+    image_id = 0
     for batch in iter(dl):
-
+        image_id = image_id + 1
         for k in batch.keys():
             if isinstance(batch[k], th.Tensor):
                 batch[k] = batch[k].to(device)
@@ -154,7 +155,8 @@ def main(conf: conf_mgt.Default_Conf):
             device=device,
             progress=show_progress,
             return_all=True,
-            conf=conf
+            conf=conf,
+            image_id=image_id
         )
         srs = toU8(result['sample'])
         gts = toU8(result['gt'])
@@ -173,8 +175,10 @@ def main(conf: conf_mgt.Default_Conf):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--conf_path', type=str, required=False, default=None)
+    parser.add_argument('--withp', action='store_true', default=False)
     args = vars(parser.parse_args())
 
     conf_arg = conf_mgt.conf_base.Default_Conf()
     conf_arg.update(yamlread(args.get('conf_path')))
+    conf_arg.update({'withp': args.get('withp')})
     main(conf_arg)

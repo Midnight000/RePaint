@@ -24,9 +24,11 @@ Docstrings have been added, as well as DDIM sampling and a new collection of bet
 import enum
 
 import numpy as np
+import torch
 import torch as th
-
+from utils import Blur_Shapen
 from collections import defaultdict
+import os
 
 from PIL import Image
 
@@ -169,14 +171,49 @@ class GaussianDiffusion:
             / (1.0 - self.alphas_cumprod)
         )
 
-    def undo(self, image_before_step, img_after_model, est_x_0, t, debug=False):
-        return self._undo(img_after_model, t)
+    def undo(self, image_before_step, img_after_model, est_x_0, model_kwargs, t, debug=False):
+        return self._undo(img_after_model, est_x_0, model_kwargs, t)
 
-    def _undo(self, img_out, t):
-        beta = _extract_into_tensor(self.betas, t, img_out.shape)
+    def _undo(self, img_after_model, est_x_0, model_kwargs, t):
 
-        img_in_est = th.sqrt(1 - beta) * img_out + \
-            th.sqrt(beta) * th.randn_like(img_out)
+        # blur x0 predicted by xt
+        # blur = Blur.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 250)).cuda()
+        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        # img_in_est = blur(est_x_0)
+        # img_in_est = th.sqrt(alphas_comprod) * img_in_est + \
+        #     th.sqrt(1-alphas_comprod) * th.randn_like(img_in_est)
+
+        # todo_parameter 公式推导
+        # repaint
+        # blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 1000)).cuda()
+        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t-10, est_x_0.shape)
+        # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        # img_in_est = img_after_model
+        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length / alphas_comprod) * img_in_est + \
+        #     th.sqrt(1 - (alphas_comprod_plus_jump_length / alphas_comprod)) * th.randn_like(img_in_est)
+
+        # blur compose image of gt * mask + x0 * (1-mask)
+        blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 125) ** 2).cuda()
+        gt_keep_mask = model_kwargs.get('gt_keep_mask')
+        gt = model_kwargs['gt']
+        compose = gt * gt_keep_mask + est_x_0 * (1-gt_keep_mask)
+        alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, compose.shape)
+        compose = blur(compose)
+        img_in_est = th.sqrt(alphas_comprod) * compose + \
+            th.sqrt(1-alphas_comprod) * th.randn_like(compose)
+
+        # shapen compose image of gt * mask + x0 * (1-mask)
+        # shapen = Blur_Shapen.Sharpen(0.1 * t.item() / 250).cuda()
+        # gt_keep_mask = model_kwargs.get('gt_keep_mask')
+        # gt = model_kwargs['gt']
+        # compose = gt * gt_keep_mask + est_x_0 * (1 - gt_keep_mask)
+        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, compose.shape)
+        # # if t.item() < 100:
+        # #     compose = torch.clamp(shapen(compose), 0, 1)
+        # if t.item() > 100:
+        #     compose = blur(compose)
+        # img_in_est = th.sqrt(alphas_comprod) * compose + \
+        #              th.sqrt(1 - alphas_comprod) * th.randn_like(compose)
 
         return img_in_est
 
@@ -357,7 +394,6 @@ class GaussianDiffusion:
                     gt_keep_mask = conf.get_inpa_mask(x)
 
                 gt = model_kwargs['gt']
-                #想法：利用周围信息作为待修补区域的先验
 
                 alpha_cumprod = _extract_into_tensor(
                     self.alphas_cumprod, t, x.shape)
@@ -373,13 +409,16 @@ class GaussianDiffusion:
 
                     weighed_gt = gt_part + noise_part
                     #想法：利用周围信息作为待修补区域的先验
-                    gt_weight = th.sqrt(alpha_cumprod)
-                    gt_part = gt_weight * gt
-
-                    noise_weight = th.sqrt((1 - alpha_cumprod))
-                    noise_part = noise_weight * th.randn_like(x)
-
-                    # weighed_x =
+                    # if conf.pget('withp') and t[0].item() > 200:
+                    #     newp = t[0].item()/250
+                    #
+                    #     gt_weight = th.sqrt(alpha_cumprod)
+                    #     gt_part = gt_weight * gt
+                    #
+                    #     noise_weight = th.sqrt((1 - alpha_cumprod))
+                    #     noise_part = noise_weight * th.randn_like(x)
+                    #
+                    #     x = newp * (gt_part + noise_part) + (1 - newp) * x
                     ################################
 
                 x = (
@@ -430,7 +469,8 @@ class GaussianDiffusion:
         device=None,
         progress=True,
         return_all=False,
-        conf=None
+        conf=None,
+        image_id=1
     ):
         """
         Generate samples from the model.
@@ -462,7 +502,8 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             device=device,
             progress=progress,
-            conf=conf
+            conf=conf,
+            image_id=image_id
         ):
             final = sample
 
@@ -482,7 +523,8 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
-        conf=None
+        conf=None,
+        image_id=1
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -522,7 +564,7 @@ class GaussianDiffusion:
                 idx_wall += 1
                 t_last_t = th.tensor([t_last] * shape[0],  # pylint: disable=not-callable
                                      device=device)
-
+                # print(t_cur, t_last)
                 if t_cur < t_last:  # reverse
                     with th.no_grad():
                         image_before_step = image_after_step.clone()
@@ -543,23 +585,38 @@ class GaussianDiffusion:
                         sample_idxs[t_cur] += 1
 
                         yield out
-                        # 观测每一步的预测x0
-                        # tmp_pred = out["pred_xstart"]
-                        # tmp_pred = ((tmp_pred + 1) * 127.5).clamp(0, 255).to(th.uint8)
-                        # tmp_pred = tmp_pred.permute(0, 2, 3, 1)
-                        # tmp_pred = tmp_pred.contiguous().squeeze()
-                        # tmp_pred = tmp_pred.cpu().numpy()
-                        # tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
-                        # tmp_pred.save('reverse_processing/' + 'pre' + str(t_cur) + '.jpg')
+                        # 观测每一步的图像和对应的预测x0
+                        directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing')
+                        if not os.path.exists(directory):
+                            os.mkdir(directory)
+
+                        # subfold = 'withp' if conf.pget('withp') else 'withoutp'
+                        img = out["sample"]
+                        img = ((img + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        img = img.permute(0, 2, 3, 1)
+                        img = img.contiguous().squeeze()
+                        img = img.cpu().numpy()
+                        img = Image.fromarray(img, mode='RGB')
+                        full_p1 = os.path.join(directory, 'img' + str(image_id) + '_' + str(t_cur + 1) + '.jpg')
+                        img.save(full_p1)
+
+                        tmp_pred = out["pred_xstart"]
+                        tmp_pred = ((tmp_pred + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        tmp_pred = tmp_pred.permute(0, 2, 3, 1)
+                        tmp_pred = tmp_pred.contiguous().squeeze()
+                        tmp_pred = tmp_pred.cpu().numpy()
+                        tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
+                        full_p2 = os.path.join(directory, 'pre' + str(image_id) + '_' + str(t_cur + 1) + '.jpg')
+                        tmp_pred.save(full_p2)
                         #######################
 
                 else:
-                    t_shift = conf.get('inpa_inj_time_shift', 1)
+                    t_shift = conf.get('inpa_inj_time_shift', 10)
 
                     image_before_step = image_after_step.clone()
                     image_after_step = self.undo(
                         image_before_step, image_after_step,
-                        est_x_0=out['pred_xstart'], t=t_last_t+t_shift, debug=False)
+                        est_x_0=out['pred_xstart'], t=t_last_t+t_shift, model_kwargs=model_kwargs, debug=False)
                     pred_xstart = out["pred_xstart"]
 
 def _extract_into_tensor(arr, timesteps, broadcast_shape):
