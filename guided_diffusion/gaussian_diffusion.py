@@ -194,9 +194,9 @@ class GaussianDiffusion:
             th.sqrt(1 - (alphas_comprod_plus_jump_length / alphas_comprod)) * th.randn_like(img_in_est)
 
         # repaint(xt-1 from x0)
-        # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
-        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
-        #              th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0)
+        alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
+                     th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0)
 
         # blur compose image of gt * mask + x0 * (1-mask)
         # blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 125) ** 2).cuda()
