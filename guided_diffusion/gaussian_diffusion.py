@@ -33,6 +33,8 @@ import os
 from PIL import Image
 
 from guided_diffusion.scheduler import get_schedule_jump
+from utils.File_Utils import make_dirs
+
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps, use_scale):
     """
@@ -184,23 +186,27 @@ class GaussianDiffusion:
         #     th.sqrt(1-alphas_comprod) * th.randn_like(img_in_est)
 
         # todo_parameter 公式推导
-        # repaint
-        # blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 1000)).cuda()
-        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t-10, est_x_0.shape)
+        # repaint(xt-1 from xt)
+        alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t-10, est_x_0.shape)
+        alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        img_in_est = img_after_model
+        img_in_est = th.sqrt(alphas_comprod_plus_jump_length / alphas_comprod) * img_in_est + \
+            th.sqrt(1 - (alphas_comprod_plus_jump_length / alphas_comprod)) * th.randn_like(img_in_est)
+
+        # repaint(xt-1 from x0)
         # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
-        # img_in_est = img_after_model
-        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length / alphas_comprod) * img_in_est + \
-        #     th.sqrt(1 - (alphas_comprod_plus_jump_length / alphas_comprod)) * th.randn_like(img_in_est)
+        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
+        #              th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0)
 
         # blur compose image of gt * mask + x0 * (1-mask)
-        blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 125) ** 2).cuda()
-        gt_keep_mask = model_kwargs.get('gt_keep_mask')
-        gt = model_kwargs['gt']
-        compose = gt * gt_keep_mask + est_x_0 * (1-gt_keep_mask)
-        alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, compose.shape)
-        compose = blur(compose)
-        img_in_est = th.sqrt(alphas_comprod) * compose + \
-            th.sqrt(1-alphas_comprod) * th.randn_like(compose)
+        # blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 125) ** 2).cuda()
+        # gt_keep_mask = model_kwargs.get('gt_keep_mask')
+        # gt = model_kwargs['gt']
+        # compose = gt * gt_keep_mask + est_x_0 * (1-gt_keep_mask)
+        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, compose.shape)
+        # compose = blur(compose)
+        # img_in_est = th.sqrt(alphas_comprod) * compose + \
+        #     th.sqrt(1-alphas_comprod) * th.randn_like(compose)
 
         # shapen compose image of gt * mask + x0 * (1-mask)
         # shapen = Blur_Shapen.Sharpen(0.1 * t.item() / 250).cuda()
@@ -443,7 +449,7 @@ class GaussianDiffusion:
 
         nonzero_mask = (
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
-        ) 
+        )
 
         if cond_fn is not None:
             out["mean"] = self.condition_mean(
@@ -560,12 +566,14 @@ class GaussianDiffusion:
                 from tqdm.auto import tqdm
                 time_pairs = tqdm(time_pairs)
 
+            counter = 0
             for t_last, t_cur in time_pairs:
                 idx_wall += 1
                 t_last_t = th.tensor([t_last] * shape[0],  # pylint: disable=not-callable
                                      device=device)
                 # print(t_cur, t_last)
                 if t_cur < t_last:  # reverse
+                    counter += 1
                     with th.no_grad():
                         image_before_step = image_after_step.clone()
                         out = self.p_sample(
@@ -586,9 +594,8 @@ class GaussianDiffusion:
 
                         yield out
                         # 观测每一步的图像和对应的预测x0
-                        directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing')
-                        if not os.path.exists(directory):
-                            os.mkdir(directory)
+                        directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(image_id)
+                        make_dirs(directory)
 
                         # subfold = 'withp' if conf.pget('withp') else 'withoutp'
                         img = out["sample"]
@@ -597,7 +604,7 @@ class GaussianDiffusion:
                         img = img.contiguous().squeeze()
                         img = img.cpu().numpy()
                         img = Image.fromarray(img, mode='RGB')
-                        full_p1 = os.path.join(directory, 'img' + str(image_id) + '_' + str(t_cur + 1) + '.jpg')
+                        full_p1 = os.path.join(directory, 'img' + '_' + str(counter) + '.jpg')
                         img.save(full_p1)
 
                         tmp_pred = out["pred_xstart"]
@@ -606,13 +613,13 @@ class GaussianDiffusion:
                         tmp_pred = tmp_pred.contiguous().squeeze()
                         tmp_pred = tmp_pred.cpu().numpy()
                         tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
-                        full_p2 = os.path.join(directory, 'pre' + str(image_id) + '_' + str(t_cur + 1) + '.jpg')
+                        full_p2 = os.path.join(directory, 'pre' + '_' + str(counter) + '.jpg')
                         tmp_pred.save(full_p2)
                         #######################
 
                 else:
-                    t_shift = conf.get('inpa_inj_time_shift', 10)
-
+                    counter += conf.pget('schedule_jump_params.jump_length', 10)
+                    t_shift = conf.pget('schedule_jump_params.jump_length', 10)
                     image_before_step = image_after_step.clone()
                     image_after_step = self.undo(
                         image_before_step, image_after_step,

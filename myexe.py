@@ -17,11 +17,14 @@ import utils.mask
 
 # Image Scaler
 # input_path = 'data/mytest1024'
-# output_path = 'data/mytest256/gt'
+# output_path = 'data/mytest256/random_image/random_mask/gt'
 # files = os.listdir('data/mytest1024')
 # to_tensor = transforms.ToTensor()
 # to_image = transforms.ToPILImage()
 # for file in files:
+#     num, suffix = os.path.splitext(file)
+#     num = num.zfill(5)
+#     file = num + '.' + suffix
 #     real_file = os.path.join(input_path, file)
 #     real_file = Image.open(real_file)
 #     out = real_file.resize((256, 256))
@@ -29,16 +32,16 @@ import utils.mask
 #     out.save(os.path.join(output_path, file))
 #
 #
-# Mask Generator
+# # Mask Generator
 # to_tensor = transforms.ToTensor()
 # to_image = transforms.ToPILImage()
-# files = os.listdir('data/mytest256/gt')
+# files = os.listdir('data/mytest256/random_image/random_mask/gt')
 # i = 0
 # for file in files:
 #     rand = torch.rand((1, 256, 256))
 #     mask = utils.mask.random_irregular_mask(rand)
 #     mask = to_image(mask)
-#     mask.save('data/mytest256/mask/mask' + str(i) + '.jpg')
+#     mask.save('data/mytest256/random_image/random_mask/mask/mask' + str(i) + '.jpg')
 #     i += 1
 
 
@@ -55,34 +58,36 @@ import utils.mask
 #     print(type(image))
 
 # 打开一张图片测试
-img = Image.open("data/test/2.png")
-# print(img)
-tmp = torch.from_numpy(np.array(img).transpose(2, 0, 1)).float()/255
-blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=0.2)
-shapen = Blur_Shapen.Sharpen(0.1)
-tmp = torch.clamp(shapen(tmp), 0, 1)
-tmp = tmp.numpy().transpose(1, 2, 0)
-# print(tmp.shape)
-pil_image = Image.fromarray(np.uint8(tmp * 255))
-pil_image.show()
-pil_image.save("data/test/2.png")
-img.close()
+# img = Image.open("data/test/2.png")
+# # print(img)
+# tmp = torch.from_numpy(np.array(img).transpose(2, 0, 1)).float()/255
+# blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=0.2)
+# shapen = Blur_Shapen.Sharpen(0.1)
+# tmp = torch.clamp(shapen(tmp), 0, 1)
+# tmp = tmp.numpy().transpose(1, 2, 0)
+# # print(tmp.shape)
+# pil_image = Image.fromarray(np.uint8(tmp * 255))
+# pil_image.show()
+# pil_image.save("data/test/2.png")
+# img.close()
 
 # duplicate image and mask
-# gtname = 'data/mytest256/gt/1.png'
-# maskname = 'data/mytest256/mask/1.png'
+# gtname = 'data/eval/mask/genhalf'
+maskname = 'data/eval/mask/genhalf/000000.png'
 # img = Image.open(gtname)
-# mask = Image.open(maskname)
-# for i in range(2, 101):
-#     tmpimg = img
-#     tmpmask = mask
-#
-#     dirname, filename = os.path.split(gtname)
-#     num, suffix = os.path.splitext(filename)
-#     gtname = os.path.join(dirname, str(i) + suffix)
-#     tmpimg.save(gtname)
-#
-#     dirname, filename = os.path.split(maskname)
-#     num, suffix = os.path.splitext(filename)
-#     maskname = os.path.join(dirname, str(i) + suffix)
-#     tmpmask.save(maskname)
+mask = Image.open(maskname)
+for i in range(2, 2000):
+    # tmpimg = img
+    tmpmask = mask
+
+    # dirname, filename = os.path.split(gtname)
+    # num, suffix = os.path.splitext(filename)
+    # gtname = os.path.join(dirname, str(i) + suffix)
+    # tmpimg.save(gtname)
+
+    dirname, filename = os.path.split(maskname)
+    num, suffix = os.path.splitext(filename)
+    num = str(int(num)+1).zfill(6)
+    maskname = os.path.join(dirname, str(num) + suffix)
+    print(maskname)
+    tmpmask.save(maskname)
