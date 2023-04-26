@@ -37,7 +37,7 @@ class Sharpen(nn.Module):
     def __init__(self, sigma):
         super(Sharpen, self).__init__()
         self.sigma = sigma
-        self.kernel = torch.stack([torch.tensor([[-1,-1,-1],[-1,9,-1],[-1,-1,-1]], dtype=torch.float32)]) / 9
+        self.kernel = torch.stack([torch.tensor([[-1,-1,-1],[-1,8,-1],[-1,-1,-1]], dtype=torch.float32)])
 
     def forward(self, x):
 
@@ -47,6 +47,6 @@ class Sharpen(nn.Module):
         # print(kernel)
         out = nn.functional.conv2d(x, kernel, bias=None, padding=1, stride=1, groups=3)
 
-        out = (1 - self.sigma) * x + self.sigma * out
+        # out = (1 - self.sigma) * x + self.sigma * out
 
         return out

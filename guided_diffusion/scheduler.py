@@ -52,8 +52,8 @@ def _check_times(times, t_0, t_T):
     assert times[-1] == -1, times[-1]
 
     # Steplength = 1
-    # for t_last, t_cur in zip(times[:-1], times[1:]):
-    #     assert abs(t_last - t_cur) == 1, (t_last, t_cur)
+    for t_last, t_cur in zip(times[:-1], times[1:]):
+        assert abs(t_last - t_cur) == 1, (t_last, t_cur)
 
     # Value range
     for t in times:
@@ -129,14 +129,9 @@ def get_schedule_jump(t_T, n_sample, jump_length, jump_n_sample,
             t <= start_resampling - jump_length
         ):
             jumps[t] = jumps[t] - 1
-
-            ########################### 跳步
-            ts.append(t + jump_length)
-            t = t + jump_length
-            ###########################
-            # for _ in range(jump_length):
-            #     t = t + 1
-            #     ts.append(t)
+            for _ in range(jump_length):
+                t = t + 1
+                ts.append(t)
             jumps2 = {}
             for j in range(0, t_T - jump2_length, jump2_length):
                 jumps2[j] = jump2_n_sample - 1

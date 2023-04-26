@@ -21,12 +21,18 @@ process towards more realistic images.
 
 import os
 import argparse
+
+import torch
 import torch as th
 import torch.nn.functional as F
 import time
+
+from PIL import Image
+
 import conf_mgt
-from utils import yamlread
+from utils import yamlread, Dis_Transform
 from guided_diffusion import dist_util
+import numpy as np
 
 # Workaround
 try:
@@ -118,6 +124,8 @@ def main(conf: conf_mgt.Default_Conf):
     image_id = 0
     for batch in iter(dl):
         image_id = image_id + 1
+        # if image_id != 6:
+        #     continue
         for k in batch.keys():
             if isinstance(batch[k], th.Tensor):
                 batch[k] = batch[k].to(device)
@@ -129,6 +137,18 @@ def main(conf: conf_mgt.Default_Conf):
         gt_keep_mask = batch.get('gt_keep_mask')
         if gt_keep_mask is not None:
             model_kwargs['gt_keep_mask'] = gt_keep_mask
+            weight_mask = gt_keep_mask
+            weight_mask = (weight_mask * 255).to(th.uint8)
+            weight_mask = weight_mask.squeeze().cpu().numpy()
+            weight_mask = np.transpose(weight_mask, (1, 2, 0))
+            weight_mask = Image.fromarray(weight_mask, 'RGB')
+            weight_mask = Dis_Transform.dis_transform(weight_mask)
+            weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / conf_arg.pget('image_size')) ** 2
+            maxm = np.max(weight_mask)
+            weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            weight_mask = weight_mask / maxm / 20 + 1
+            # print(weight_mask)
+            model_kwargs["weight_mask"] = weight_mask
 
         batch_size = model_kwargs["gt"].shape[0]
 

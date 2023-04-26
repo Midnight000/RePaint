@@ -173,11 +173,14 @@ class GaussianDiffusion:
             / (1.0 - self.alphas_cumprod)
         )
 
-    def undo(self, image_before_step, img_after_model, est_x_0, model_kwargs, t, debug=False):
-        return self._undo(img_after_model, est_x_0, model_kwargs, t)
+        # print(self.alphas_cumprod)
 
-    def _undo(self, img_after_model, est_x_0, model_kwargs, t):
+    def undo(self, image_before_step, img_after_model, est_x_0, model_kwargs, t, conf, debug=False):
+        return self._undo(img_after_model, est_x_0, model_kwargs, t, conf=conf)
 
+    def _undo(self, img_after_model, est_x_0, model_kwargs, t, conf):
+        # jump = conf.pget('schedule_jump_params.jump_length', 100)
+        jump = 1
         # blur x0 predicted by xt
         # blur = Blur.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 250)).cuda()
         # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
@@ -185,18 +188,27 @@ class GaussianDiffusion:
         # img_in_est = th.sqrt(alphas_comprod) * img_in_est + \
         #     th.sqrt(1-alphas_comprod) * th.randn_like(img_in_est)
 
-        # todo_parameter 公式推导
-        # repaint(xt-1 from xt)
-        alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t-10, est_x_0.shape)
-        alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
-        img_in_est = img_after_model
-        img_in_est = th.sqrt(alphas_comprod_plus_jump_length / alphas_comprod) * img_in_est + \
-            th.sqrt(1 - (alphas_comprod_plus_jump_length / alphas_comprod)) * th.randn_like(img_in_est)
+        # repaint(xt+10 from xt)
+        beta = _extract_into_tensor(self.betas, t, img_after_model.shape)
+        img_in_est = th.sqrt(1 - beta) * img_after_model + \
+                     th.sqrt(beta) * th.randn_like(img_after_model)
 
-        # repaint(xt-1 from x0)
-        alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
-        img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
-                     th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0)
+        # repaint(xt+10 from x0)
+        # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
+        #     th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0)
+
+
+
+
+
+        # repaint(xt+10 from x0) introduce weight_mask
+        # if(t>=0):
+        # weight_mask = model_kwargs['weight_mask'] if t < 2000 else th.ones_like(est_x_0)
+        # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
+        # img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
+        #              th.sqrt(1 - alphas_comprod_plus_jump_length) * th.randn_like(est_x_0) \
+        #     * weight_mask
 
         # blur compose image of gt * mask + x0 * (1-mask)
         # blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 125) ** 2).cuda()
@@ -364,6 +376,7 @@ class GaussianDiffusion:
         model,
         x,
         t,
+        fix_noise,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -409,23 +422,13 @@ class GaussianDiffusion:
                 else:
                     gt_weight = th.sqrt(alpha_cumprod)
                     gt_part = gt_weight * gt
-
+                    ################固定噪声
                     noise_weight = th.sqrt((1 - alpha_cumprod))
+                    # noise_part = noise_weight * fix_noise
+                    ################
                     noise_part = noise_weight * th.randn_like(x)
 
                     weighed_gt = gt_part + noise_part
-                    #想法：利用周围信息作为待修补区域的先验
-                    # if conf.pget('withp') and t[0].item() > 200:
-                    #     newp = t[0].item()/250
-                    #
-                    #     gt_weight = th.sqrt(alpha_cumprod)
-                    #     gt_part = gt_weight * gt
-                    #
-                    #     noise_weight = th.sqrt((1 - alpha_cumprod))
-                    #     noise_part = noise_weight * th.randn_like(x)
-                    #
-                    #     x = newp * (gt_part + noise_part) + (1 - newp) * x
-                    ################################
 
                 x = (
                     gt_keep_mask * (
@@ -567,6 +570,9 @@ class GaussianDiffusion:
                 time_pairs = tqdm(time_pairs)
 
             counter = 0
+
+            noise = th.randn_like(image_after_step)
+
             for t_last, t_cur in time_pairs:
                 idx_wall += 1
                 t_last_t = th.tensor([t_last] * shape[0],  # pylint: disable=not-callable
@@ -580,6 +586,7 @@ class GaussianDiffusion:
                             model,
                             image_after_step,
                             t_last_t,
+                            fix_noise=noise,
                             clip_denoised=clip_denoised,
                             denoised_fn=denoised_fn,
                             cond_fn=cond_fn,
@@ -587,7 +594,13 @@ class GaussianDiffusion:
                             conf=conf,
                             pred_xstart=pred_xstart
                         )
+                        ##Repaint中的做法：直接通过xt得到xt-1
                         image_after_step = out["sample"]
+                        ################################# 前向过程的xt-1也通过对predx0加噪得到
+                        # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t_last_t, image_after_step.shape)
+                        # image_after_step = th.sqrt(alphas_comprod) * out["pred_xstart"] + th.sqrt(1 - alphas_comprod) *\
+                        #     th.randn_like(image_after_step)
+                        #################################################################
                         pred_xstart = out["pred_xstart"]
 
                         sample_idxs[t_cur] += 1
@@ -604,7 +617,7 @@ class GaussianDiffusion:
                         img = img.contiguous().squeeze()
                         img = img.cpu().numpy()
                         img = Image.fromarray(img, mode='RGB')
-                        full_p1 = os.path.join(directory, 'img' + '_' + str(counter) + '.jpg')
+                        full_p1 = os.path.join(directory, 'img' + '_' + str(counter).zfill(6) + '.jpg')
                         img.save(full_p1)
 
                         tmp_pred = out["pred_xstart"]
@@ -613,17 +626,19 @@ class GaussianDiffusion:
                         tmp_pred = tmp_pred.contiguous().squeeze()
                         tmp_pred = tmp_pred.cpu().numpy()
                         tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
-                        full_p2 = os.path.join(directory, 'pre' + '_' + str(counter) + '.jpg')
+                        full_p2 = os.path.join(directory, 'pre' + '_' + str(counter).zfill(6) + '.jpg')
                         tmp_pred.save(full_p2)
                         #######################
 
                 else:
-                    counter += conf.pget('schedule_jump_params.jump_length', 10)
-                    t_shift = conf.pget('schedule_jump_params.jump_length', 10)
+                    # counter += conf.pget('schedule_jump_params.jump_length', 1000)
+                    # t_shift = conf.pget('schedule_jump_params.jump_length', 1000)
+                    t_shift = 1
+                    counter += 1
                     image_before_step = image_after_step.clone()
                     image_after_step = self.undo(
                         image_before_step, image_after_step,
-                        est_x_0=out['pred_xstart'], t=t_last_t+t_shift, model_kwargs=model_kwargs, debug=False)
+                        est_x_0=out['pred_xstart'], t=t_last_t+t_shift, model_kwargs=model_kwargs, debug=False, conf=conf)
                     pred_xstart = out["pred_xstart"]
 
 def _extract_into_tensor(arr, timesteps, broadcast_shape):

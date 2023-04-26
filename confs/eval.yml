@@ -68,7 +68,7 @@ data:
     paper_face_mask:
       mask_loader: true
       gt_path: ./data/eval/gt
-      mask_path: ./data/eval/mask/genhalf
+      mask_path: ./data/eval/mask/thick
       image_size: 256
       class_cond: false
       deterministic: true
@@ -81,8 +81,8 @@ data:
       offset: 0
       max_len: 100
       paths:
-        srs: ./log/eval/half_mask/repaint_0/inpainted
-        lrs: ./log/eval/half_mask/repaint_0/gt_masked
-        gts: ./log/eval/half_mask/repaint_0/gt
-        gt_keep_masks: ./log/eval/half_mask/repaint_0/gt_keep_mask
-        reverse_processing: reverse_processing/eval/half_mask/reverse_processing_repaint_0
+        srs: ./log/step_250_10_10/eval/thick/repaint_t/inpainted
+        lrs: ./log/step_250_10_10/eval/thick/repaint_t/gt_masked
+        gts: ./log/step_250_10_10/eval/thick/repaint_t/gt
+        gt_keep_masks: ./log/step_250_10_10/eval/thick/repaint_t/gt_keep_mask
+        reverse_processing: reverse_processing/step_250_10_10/eval/thick/reverse_processing_repaint_t
