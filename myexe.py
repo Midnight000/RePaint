@@ -66,19 +66,19 @@ import utils.mask
 #     main()
 
 
-# 打开一张图片测试
-img = Image.open("data/fun/gt/1.png")
-# print(img)
-tmp = torch.from_numpy(np.array(img).transpose(2, 0, 1)).float()/255
-blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=0.2)
-shapen = Blur_Shapen.Sharpen(0.1)
-tmp = torch.clamp(shapen(tmp), 0, 1)
-tmp = tmp.numpy().transpose(1, 2, 0)
-# print(tmp.shape)
-pil_image = Image.fromarray(np.uint8(tmp * 255))
-pil_image.show()
-pil_image.save("data/fun/gt/2.png")
-img.close()
+# # 打开一张图片测试
+# img = Image.open("data/fun/gt/1.png")
+# # print(img)
+# tmp = torch.from_numpy(np.array(img).transpose(2, 0, 1)).float()/255
+# blur = Blur_Shapen.GaussianBlur(channels=3, kernel_size=5, sigma=0.2)
+# shapen = Blur_Shapen.Sharpen(0.1)
+# tmp = torch.clamp(shapen(tmp), 0, 1)
+# tmp = tmp.numpy().transpose(1, 2, 0)
+# # print(tmp.shape)
+# pil_image = Image.fromarray(np.uint8(tmp * 255))
+# pil_image.show()
+# pil_image.save("data/fun/gt/2.png")
+# img.close()
 
 # duplicate image and mask
 # gtname = 'data/eval/mask/genhalf'
@@ -126,3 +126,9 @@ img.close()
 # result_img = Image.fromarray(dist_transform.astype(np.uint8))
 # result_img.show()
 # result_img.save('result.png')
+
+# tensor作为索引
+x = torch.tensor([[1, 2, 0], [0, 1, 2]])
+origin = torch.tensor([11, 22, 33])
+tmp = torch.tensor([1])
+print(tmp.expand(x.shape))

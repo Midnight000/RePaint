@@ -124,7 +124,7 @@ def main(conf: conf_mgt.Default_Conf):
     image_id = 0
     for batch in iter(dl):
         image_id = image_id + 1
-        # if image_id != 6:
+        # if image_id <= 7:
         #     continue
         for k in batch.keys():
             if isinstance(batch[k], th.Tensor):
@@ -143,10 +143,12 @@ def main(conf: conf_mgt.Default_Conf):
             weight_mask = np.transpose(weight_mask, (1, 2, 0))
             weight_mask = Image.fromarray(weight_mask, 'RGB')
             weight_mask = Dis_Transform.dis_transform(weight_mask)
-            weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / conf_arg.pget('image_size')) ** 2
+            weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / conf_arg.pget('image_size')) ** 1
+            weight_mask = weight_mask / 2 + 0.5
             maxm = np.max(weight_mask)
             weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
-            weight_mask = weight_mask / maxm / 20 + 1
+            weight_mask = weight_mask \
+                          # / maxm
             # print(weight_mask)
             model_kwargs["weight_mask"] = weight_mask
 

@@ -74,7 +74,16 @@ def get_schedule_jump(t_T, n_sample, jump_length, jump_n_sample,
 
     jumps = {}
     for j in range(0, t_T - jump_length, jump_length):
-        jumps[j] = jump_n_sample - 1
+        jumps[j] = jump_n_sample - 1 - 8
+        if j <= 200:
+            jumps[j] = jump_n_sample - 1 - 5
+        if j <= 150:
+            jumps[j] = jump_n_sample - 1 - 1
+        if j <= 100:
+            jumps[j] = jump_n_sample - 1 + 3
+        if j <= 50:
+            jumps[j] = jump_n_sample - 1 + 6
+        # jumps[j] = jump_n_sample - 1
 
     jumps2 = {}
     for j in range(0, t_T - jump2_length, jump2_length):
@@ -129,9 +138,14 @@ def get_schedule_jump(t_T, n_sample, jump_length, jump_n_sample,
             t <= start_resampling - jump_length
         ):
             jumps[t] = jumps[t] - 1
-            for _ in range(jump_length):
-                t = t + 1
-                ts.append(t)
+
+            ########################### 跳步
+            ts.append(t + jump_length)
+            t = t + jump_length
+            ###########################
+            # for _ in range(jump_length):
+            #     t = t + 1
+            #     ts.append(t)
             jumps2 = {}
             for j in range(0, t_T - jump2_length, jump2_length):
                 jumps2[j] = jump2_n_sample - 1
@@ -142,7 +156,7 @@ def get_schedule_jump(t_T, n_sample, jump_length, jump_n_sample,
 
     ts.append(-1)
 
-    _check_times(ts, -1, t_T)
+    # _check_times(ts, -1, t_T)
 
     return ts
 

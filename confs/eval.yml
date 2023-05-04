@@ -81,8 +81,8 @@ data:
       offset: 0
       max_len: 100
       paths:
-        srs: ./log/step_250_10_10/eval/thick/repaint_t/inpainted
-        lrs: ./log/step_250_10_10/eval/thick/repaint_t/gt_masked
-        gts: ./log/step_250_10_10/eval/thick/repaint_t/gt
-        gt_keep_masks: ./log/step_250_10_10/eval/thick/repaint_t/gt_keep_mask
-        reverse_processing: reverse_processing/step_250_10_10/eval/thick/reverse_processing_repaint_t
+        srs: ./log/step_250_10_10/eval/thick/antipartialll/inpainted
+        lrs: ./log/step_250_10_10/eval/thick/antipartialll/gt_masked
+        gts: ./log/step_250_10_10/eval/thick/antipartialll/gt
+        gt_keep_masks: ./log/step_250_10_10/eval/thick/antipartialll/gt_keep_mask
+        reverse_processing: reverse_processing/step_250_10_10/eval/thick/reverse_processing_antipartialll
