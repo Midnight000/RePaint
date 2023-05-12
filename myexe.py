@@ -127,8 +127,10 @@ import utils.mask
 # result_img.show()
 # result_img.save('result.png')
 
-# tensor作为索引
-x = torch.tensor([[1, 2, 0], [0, 1, 2]])
-origin = torch.tensor([11, 22, 33])
-tmp = torch.tensor([1])
-print(tmp.expand(x.shape))
+
+files = os.listdir('lama_data/gt')
+for file in files:
+    print(file)
+    num, suffix = os.path.splitext(file)
+    newname = str(int(num)).zfill(5) + '_crop000.png'
+    os.rename('gt/' + file, 'gt/' + newname)

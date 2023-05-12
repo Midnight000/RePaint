@@ -181,14 +181,10 @@ class GaussianDiffusion:
 
         # print(self.alphas_cumprod)
 
-    def undo(self, image_before_step, img_after_model, est_x_0, model_kwargs, t, conf, eps, last_log_variance, debug=False):
-        jump = conf.pget('schedule_jump_params.jump_length', 100)
-        # partial = th.full_like(partial, 239)
-        return self._undo(img_after_model, est_x_0, model_kwargs, t, last_log_variance=last_log_variance, eps=eps, conf=conf)
+    def undo(self, image_before_step, img_after_model, est_x_0, model_kwargs, t, conf, eps, last_log_variance, jump, debug=False):
+        return self._undo(img_after_model, est_x_0, model_kwargs, t, last_log_variance=last_log_variance, eps=eps, conf=conf, jump=jump)
 
-    def _undo(self, img_after_model, est_x_0, model_kwargs, t, conf, eps, last_log_variance):
-        jump = conf.pget('schedule_jump_params.jump_length', 100)
-        # jump = 10
+    def _undo(self, img_after_model, est_x_0, model_kwargs, t, conf, eps, last_log_variance, jump):
         # blur x0 predicted by xt
         # blur = Blur.GaussianBlur(channels=3, kernel_size=5, sigma=(t.item() / 250)).cuda()
         # alphas_comprod = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
@@ -197,11 +193,11 @@ class GaussianDiffusion:
         #     th.sqrt(1-alphas_comprod) * th.randn_like(img_in_est)
 
         # repaint(xt+10 from xt)
-        # img_in_est = img_after_model
-        # for i in range(jump):
-        #     beta = _extract_into_tensor(self.betas, t - jump + i + 1, img_after_model.shape)
-        #     img_in_est = th.sqrt(1 - beta) * img_in_est + \
-        #                  th.sqrt(beta) * th.randn_like(img_in_est)
+        img_in_est = img_after_model
+        for i in range(jump):
+            beta = _extract_into_tensor(self.betas, t - jump + i + 1, img_after_model.shape)
+            img_in_est = th.sqrt(1 - beta) * img_in_est + \
+                         th.sqrt(beta) * th.randn_like(img_in_est)
 
         # repaint(xt+10 from x0)
         # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
@@ -222,19 +218,19 @@ class GaussianDiffusion:
                          # + th.sqrt(_extract_into_tensor(self.betas, th.full_like(t, i), est_x_0.shape)) \
 
         # anti_partial repaint
-        partial = model_kwargs['weight_mask']
-        partial = th.floor(partial * (t - jump))
-        partial = th.where(partial < 0, 0, partial)
-        partial = partial.to(th.long)
-        img_mid = est_x_0 * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
-                  + eps * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
-        sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t].expand(partial.shape) /
-                              to_tensor(self.alphas_cumprod, partial.device)[partial])
-        sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t] * (
-            th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t] -
-                    to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
-        beta = _extract_into_tensor(1 - self.alphas_cumprod, t, est_x_0.shape)
-        img_in_est = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(est_x_0)
+        # partial = model_kwargs['weight_mask']
+        # partial = th.floor(partial * (t - jump))
+        # partial = th.where(partial < 0, 0, partial)
+        # partial = partial.to(th.long)
+        # img_mid = est_x_0 * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
+        #           + eps * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
+        # sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t].expand(partial.shape) /
+        #                       to_tensor(self.alphas_cumprod, partial.device)[partial])
+        # sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t] * (
+        #     th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t] -
+        #             to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
+        # beta = _extract_into_tensor(1 - self.alphas_cumprod, t, est_x_0.shape)
+        # img_in_est = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(est_x_0)
 
         # partial repaint
         # partial = 1 - model_kwargs['weight_mask']
@@ -508,7 +504,42 @@ class GaussianDiffusion:
 
         sample = out["mean"] + nonzero_mask * \
                  th.exp(0.5 * out["log_variance"]) * noise
-
+        # ######################################### repaint sampling
+        # if t > 0:
+        #     partial = model_kwargs['weight_mask']
+        #     partial = th.floor(partial * (t-1))
+        #     partial = th.where(partial < 0, 0, partial)
+        #     partial = partial.to(th.long)
+        #     img_mid = out["pred_xstart"] * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
+        #               + out["eps"] * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
+        #     sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t-1].expand(partial.shape) /
+        #                           to_tensor(self.alphas_cumprod, partial.device)[partial])
+        #     sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t-1] * (
+        #         th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t-1] -
+        #                 to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
+        #     sample = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(img_mid)
+        # ############################################################
+        # ######################################### DDIM
+        # if t > 0:
+        #     alpha_bar = _extract_into_tensor(self.alphas_cumprod, t, x.shape)
+        #     alpha_bar_prev = _extract_into_tensor(self.alphas_cumprod_prev, t, x.shape)
+        #     eta = 0.5
+        #     sigma = (
+        #             eta
+        #             * th.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar))
+        #             * th.sqrt(1 - alpha_bar / alpha_bar_prev)
+        #     )
+        #     # print(sigma)
+        #     noise = th.randn_like(x)
+        #     sample = (
+        #         out["pred_xstart"] * th.sqrt(alpha_bar_prev)
+        #         + th.sqrt(1 - alpha_bar_prev - sigma ** 2) * out["eps"]
+        #     )
+        #     nonzero_mask = (
+        #         (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
+        #     )  # no noise when t == 0
+        #     sample = sample + nonzero_mask * sigma * noise
+        # ############################################################
         result = {"sample": sample,
                   "pred_xstart": out["pred_xstart"],
                   'gt': model_kwargs.get('gt'),
@@ -683,13 +714,13 @@ class GaussianDiffusion:
                         #######################
 
                 else:
-                    counter += conf.pget('schedule_jump_params.jump_length', 1000)
-                    t_shift = conf.pget('schedule_jump_params.jump_length', 1000)
+                    counter += t_cur - t_last
+                    t_shift = t_cur - t_last
                     image_before_step = image_after_step.clone()
                     image_after_step = self.undo(
                         image_before_step, image_after_step,
                         est_x_0=out['pred_xstart'], t=t_last_t + t_shift, model_kwargs=model_kwargs, debug=False,
-                        conf=conf, eps=last_eps, last_log_variance=last_log_variance)
+                        conf=conf, eps=last_eps, last_log_variance=last_log_variance, jump=t_shift)
                     pred_xstart = out["pred_xstart"]
 
 
