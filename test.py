@@ -147,7 +147,8 @@ def main(conf: conf_mgt.Default_Conf):
             # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / conf_arg.pget('image_size') / 1.41421)
             # weight_mask = weight_mask / (image_id / 10 + 1) + (1 - 1 / (image_id / 10 + 1))
             weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 1
-            weight_mask = 1 - weight_mask
+            # weight_mask = weight_mask * 0.1 * (image_id - 1)
+            weight_mask = weight_mask * 0.3 + 0.7
             weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
             weight_mask = weight_mask \
                           # / maxm

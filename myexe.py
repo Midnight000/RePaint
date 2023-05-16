@@ -81,33 +81,33 @@ import utils.mask
 # img.close()
 
 # duplicate image and mask
-# gtname = 'data/eval/mask/genhalf'
-# maskname = 'data/eval/mask/genhalf/000000.png'
+# gtname = 'data/fun/gt2/0.png'
+maskname = 'data/fun/mask2/mask1.png'
 # img = Image.open(gtname)
-# mask = Image.open(maskname)
-# for i in range(2, 2000):
-#     # tmpimg = img
-#     tmpmask = mask
+mask = Image.open(maskname)
+for i in range(1, 101):
+    # tmpimg = img
+    tmpmask = mask
+
+    # dirname, filename = os.path.split(gtname)
+    # num, suffix = os.path.splitext(filename)
+    # num = str(int(i)).zfill(6)
+    # gtname = os.path.join(dirname, num + suffix)
+    # tmpimg.save(gtname)
 #
-#     # dirname, filename = os.path.split(gtname)
-#     # num, suffix = os.path.splitext(filename)
-#     # gtname = os.path.join(dirname, str(i) + suffix)
-#     # tmpimg.save(gtname)
-#
-#     dirname, filename = os.path.split(maskname)
-#     num, suffix = os.path.splitext(filename)
-#     num = str(int(num)+1).zfill(6)
-#     maskname = os.path.join(dirname, str(num) + suffix)
-#     print(maskname)
-#     tmpmask.save(maskname)
+    dirname, filename = os.path.split(maskname)
+    num, suffix = os.path.splitext(filename)
+    num = str(int(i)).zfill(6)
+    maskname = os.path.join(dirname, str(num) + suffix)
+    tmpmask.save(maskname)
 
 
-# import numpy as np
-# from scipy.ndimage import distance_transform_edt
-# from PIL import Image
-#
+import numpy as np
+from scipy.ndimage import distance_transform_edt
+from PIL import Image
+
 # # 读取图片并转换成numpy数组
-# img = Image.open('eval/mask/thin/000000.png').convert('L')
+# img = Image.open('data/eval/mask/genhalf/000001.png').convert('L')
 # img_array = np.array(img)
 # print(img_array)
 # # 将黑色像素值设为1，白色像素值设为0
@@ -127,10 +127,23 @@ import utils.mask
 # result_img.show()
 # result_img.save('result.png')
 
+# lama
+# files = os.listdir('lama_data/gt')
+# for file in files:
+#     print(file)
+#     num, suffix = os.path.splitext(file)
+#     newname = str(int(num)).zfill(5) + '_crop000.png'
+#     os.rename('gt/' + file, 'gt/' + newname)
 
-files = os.listdir('lama_data/gt')
-for file in files:
-    print(file)
-    num, suffix = os.path.splitext(file)
-    newname = str(int(num)).zfill(5) + '_crop000.png'
-    os.rename('gt/' + file, 'gt/' + newname)
+# import numpy as np
+# import matplotlib.pyplot as plt
+#
+# # 生成二维数组
+# data = np.loadtxt('__py_debug_temp_var_627474697[0][0].csv', delimiter=',', skiprows=0)
+# # 绘制热点图
+# plt.imshow(data, cmap='hot')
+# # plt.colorbar()
+# # plt.show()
+# plt.axis('off')
+# plt.savefig("hot.jpg", bbox_inches='tight', pad_inches = -0.1, dpi=73.5)
+

@@ -199,6 +199,13 @@ class GaussianDiffusion:
             img_in_est = th.sqrt(1 - beta) * img_in_est + \
                          th.sqrt(beta) * th.randn_like(img_in_est)
 
+        # # repaint with eps
+        # img_in_est = img_after_model
+        # for i in range(jump):
+        #     beta = _extract_into_tensor(self.betas, t - jump + i + 1, img_after_model.shape)
+        #     img_in_est = th.sqrt(1 - beta) * img_in_est + \
+        #                  th.sqrt(beta) * eps
+
         # repaint(xt+10 from x0)
         # alphas_comprod_plus_jump_length = _extract_into_tensor(self.alphas_cumprod, t, est_x_0.shape)
         # img_in_est = th.sqrt(alphas_comprod_plus_jump_length) * est_x_0 + \
@@ -422,6 +429,8 @@ class GaussianDiffusion:
             x,
             t,
             fix_noise,
+            image_id,
+            counter,
             clip_denoised=True,
             denoised_fn=None,
             cond_fn=None,
@@ -429,7 +438,8 @@ class GaussianDiffusion:
             conf=None,
             meas_fn=None,
             pred_xstart=None,
-            idx_wall=-1
+            idx_wall=-1,
+
     ):
         """
         Sample x_{t-1} from the model at the given timestep.
@@ -474,6 +484,19 @@ class GaussianDiffusion:
 
                     weighed_gt = gt_part + noise_part
 
+                # directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(
+                #     image_id)
+                # make_dirs(directory)
+                # # subfold = 'withp' if conf.pget('withp') else 'withoutp'
+                # img = weighed_gt
+                # img = ((img + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                # img = img.permute(0, 2, 3, 1)
+                # img = img.contiguous().squeeze()
+                # img = img.cpu().numpy()
+                # img = Image.fromarray(img, mode='RGB')
+                # full_p1 = os.path.join(directory, 'gt_noise' + '_' + str(counter).zfill(6) + '.jpg')
+                # img.save(full_p1)
+
                 x = (
                         gt_keep_mask * (
                     weighed_gt
@@ -505,19 +528,33 @@ class GaussianDiffusion:
         sample = out["mean"] + nonzero_mask * \
                  th.exp(0.5 * out["log_variance"]) * noise
         # ######################################### repaint sampling
-        # if t > 0:
-        #     partial = model_kwargs['weight_mask']
-        #     partial = th.floor(partial * (t-1))
-        #     partial = th.where(partial < 0, 0, partial)
-        #     partial = partial.to(th.long)
-        #     img_mid = out["pred_xstart"] * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
-        #               + out["eps"] * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
-        #     sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t-1].expand(partial.shape) /
-        #                           to_tensor(self.alphas_cumprod, partial.device)[partial])
-        #     sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t-1] * (
-        #         th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t-1] -
-        #                 to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
-        #     sample = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(img_mid)
+        if t > 0:
+            partial = model_kwargs['weight_mask']
+            partial = th.floor(partial * (t-1))
+            partial = th.where(partial < 0, 0, partial)
+            partial = partial.to(th.long)
+            img_mid = out["pred_xstart"] * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
+                      + out["eps"] * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
+            sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t-1].expand(partial.shape) /
+                                  to_tensor(self.alphas_cumprod, partial.device)[partial])
+            sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t-1] * (
+                th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t-1] -
+                        to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
+            sample = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(img_mid)
+
+            # directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(
+            #     image_id)
+            # make_dirs(directory)
+            # # subfold = 'withp' if conf.pget('withp') else 'withoutp'
+            # img = img_mid
+            # img = ((img + 1) * 127.5).clamp(0, 255).to(th.uint8)
+            # img = img.permute(0, 2, 3, 1)
+            # img = img.contiguous().squeeze()
+            # img = img.cpu().numpy()
+            # img = Image.fromarray(img, mode='RGB')
+            # full_p1 = os.path.join(directory, 'mid' + '_' + str(counter).zfill(6) + '.jpg')
+            # img.save(full_p1)
+
         # ############################################################
         # ######################################### DDIM
         # if t > 0:
@@ -666,6 +703,8 @@ class GaussianDiffusion:
                             model,
                             image_after_step,
                             t_last_t,
+                            counter=counter,
+                            image_id=image_id,
                             fix_noise=noise,
                             clip_denoised=clip_denoised,
                             denoised_fn=denoised_fn,
