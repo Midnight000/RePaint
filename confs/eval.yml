@@ -56,19 +56,21 @@ model_path: ./data/pretrained/celeba256_250000.pt
 name: mytest
 inpa_inj_sched_prev: true
 n_jobs: 1
+new: false
 print_estimated_vars: true
 inpa_inj_sched_prev_cumnoise: false
 schedule_jump_params:
   t_T: 250
   n_sample: 1
-  jump_length: 70
-  jump_n_sample: 10
+  jump_length: 100
+  jump_n_sample: 1
+eta: 0
 data:
   eval:
     paper_face_mask:
       mask_loader: true
       gt_path: ./data/eval/gt
-      mask_path: ./data/eval/mask/genhalf
+      mask_path: ./data/eval/mask/40
       image_size: 256
       class_cond: false
       deterministic: true
@@ -81,8 +83,8 @@ data:
       offset: 0
       max_len: 100
       paths:
-        srs: ./log/step_250_1_70_10/eval/half_mask/sample_antipartial/inpainted
-        lrs: ./log/step_250_1_70_10/eval/half_mask/sample_antipartial/gt_masked
-        gts: ./log/step_250_1_70_10/eval/half_mask/sample_antipartial/gt
-        gt_keep_masks: ./log/step_250_1_70_10/eval/half_mask/sample_antipartial/gt_keep_mask
-        reverse_processing: reverse_processing/step_250_1_70_10/eval/half_mask/reverse_processing_sample_antipartial
+        srs: ./log/step_250_1_10_1/eval/40/20t/inpainted
+        lrs: ./log/step_250_1_10_1/eval/40/20t/gt_masked
+        gts: ./log/step_250_1_10_1/eval/40/20t/gt
+        gt_keep_masks: ./log/step_250_1_10_1/eval/40/20t/gt_keep_mask
+        reverse_processing: reverse_processing/step_250_1_10_1/eval/20/reverse_processing_10t

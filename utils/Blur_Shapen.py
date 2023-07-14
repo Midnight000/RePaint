@@ -47,6 +47,6 @@ class Sharpen(nn.Module):
         # print(kernel)
         out = nn.functional.conv2d(x, kernel, bias=None, padding=1, stride=1, groups=3)
 
-        # out = (1 - self.sigma) * x + self.sigma * out
+        out = self.sigma * torch.abs(out)
 
         return out

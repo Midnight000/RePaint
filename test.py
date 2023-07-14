@@ -37,10 +37,10 @@ import numpy as np
 # Workaround
 try:
     import ctypes
+
     libgcc_s = ctypes.CDLL('libgcc_s.so.1')
 except:
     pass
-
 
 from guided_diffusion.script_util import (
     NUM_CLASSES,
@@ -50,6 +50,7 @@ from guided_diffusion.script_util import (
     create_classifier,
     select_args,
 )  # noqa: E402
+
 
 def toU8(sample):
     if sample is None:
@@ -63,11 +64,9 @@ def toU8(sample):
 
 
 def main(conf: conf_mgt.Default_Conf):
-
     print("Start", conf['name'])
 
     device = dist_util.dev(conf.get('device'))
-
 
     model, diffusion = create_model_and_diffusion(
         **select_args(conf, model_and_diffusion_defaults().keys()), conf=conf
@@ -124,7 +123,7 @@ def main(conf: conf_mgt.Default_Conf):
     image_id = 0
     for batch in iter(dl):
         image_id = image_id + 1
-        # if image_id <= 28:
+        # if image_id <= 37:
         #     continue
         for k in batch.keys():
             if isinstance(batch[k], th.Tensor):
@@ -143,16 +142,50 @@ def main(conf: conf_mgt.Default_Conf):
             weight_mask = np.transpose(weight_mask, (1, 2, 0))
             weight_mask = Image.fromarray(weight_mask, 'RGB')
             weight_mask = Dis_Transform.dis_transform(weight_mask)
+            total = weight_mask.sum()/256/256/256/3
+            # print(total)
+            factor = 0.95
+            tmpfactor = 0.90
+            first = 0.3
+            for i in range(18):
+                if total < first:
+                    factor = tmpfactor
+                tmpfactor = tmpfactor - 0.05
+                total = total * 2
+            print(factor)
+
+            ####################################### dense
+            # maxm = np.max(weight_mask)
+            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 2
+            # weight_mask = weight_mask * (1 - factor) + factor
+            # weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            # model_kwargs["weight_mask"] = weight_mask
+
+            ####################################### fixed_eta
+            # maxm = np.max(weight_mask)
+            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 2
+            # weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            # eta = 0.01 * int(conf["eta"])
+            # model_kwargs["weight_mask"] = th.ones_like(weight_mask) * eta
+
+            ####################################### fixed_eta+pixel_position
+            # maxm = np.max(weight_mask)
+            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 2
+            # eta = 0.01 * int(conf["eta"])
+            # weight_mask = weight_mask * (1 - eta) + eta
+            # weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            # model_kwargs["weight_mask"] = weight_mask
+
+            ####################################### fun_test
             maxm = np.max(weight_mask)
-            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / conf_arg.pget('image_size') / 1.41421)
-            # weight_mask = weight_mask / (image_id / 10 + 1) + (1 - 1 / (image_id / 10 + 1))
-            weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 1
-            # weight_mask = weight_mask * 0.1 * (image_id - 1)
-            weight_mask = weight_mask * 0.3 + 0.7
+            weight_mask = (np.transpose(weight_mask, (2, 0, 1)))
+            # weight_mask = np.random.random_integers(0, 100, weight_mask.shape)
+            weight_mask = np.zeros_like(weight_mask)
+            weight_mask[:, ::2, ::2] = 1
+            weight_mask[:, 1::2, 1::2] = 1
             weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
-            weight_mask = weight_mask \
-                          # / maxm
-            # print(weight_mask)
+            weight_mask = th.where(weight_mask % 2 == 0, 0.3, 1.0) * 1.0
+
             model_kwargs["weight_mask"] = weight_mask
 
         batch_size = model_kwargs["gt"].shape[0]
@@ -169,7 +202,6 @@ def main(conf: conf_mgt.Default_Conf):
         sample_fn = (
             diffusion.p_sample_loop if not conf.use_ddim else diffusion.ddim_sample_loop
         )
-
 
         result = sample_fn(
             model_fn,
