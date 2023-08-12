@@ -30,7 +30,7 @@ classifier_scale: 4.0
 lr_kernel_n_std: 2
 num_samples: 100
 show_progress: true
-timestep_respacing: '250'
+timestep_respacing: '1000'
 use_kl: false
 predict_xstart: false
 rescale_timesteps: false
@@ -56,15 +56,15 @@ model_path: ./data/pretrained/celeba256_250000.pt
 name: mytest
 inpa_inj_sched_prev: true
 n_jobs: 1
-new: false
+new: true
 print_estimated_vars: true
 inpa_inj_sched_prev_cumnoise: false
 schedule_jump_params:
-  t_T: 250
+  t_T: 1000
   n_sample: 1
   jump_length: 10
   jump_n_sample: 1
-eta: 0
+eta: 80
 data:
   eval:
     paper_face_mask:
@@ -83,8 +83,8 @@ data:
       offset: 0
       max_len: 100
       paths:
-        srs: ./log/step_250_1_10_1/eval/half/time/inpainted
-        lrs: ./log/step_250_1_10_1/eval/half/time/gt_masked
-        gts: ./log/step_250_1_10_1/eval/half/time/gt
-        gt_keep_masks: ./log/step_250_1_10_1/eval/half/time/gt_keep_mask
-        reverse_processing: reverse_processing/step_250_1_10_1/eval/half/reverse_processing_time
+        srs: ./log/step_1000_1_10_1/eval/half/new/inpainted
+        lrs: ./log/step_1000_1_10_1/eval/half/new/gt_masked
+        gts: ./log/step_1000_1_10_1/eval/half/new/gt
+        gt_keep_masks: ./log/step_1000_1_10_1/eval/half/new/gt_keep_mask
+        reverse_processing: reverse_processing/step_250_1_10_1/eval/half/reverse_processing_new

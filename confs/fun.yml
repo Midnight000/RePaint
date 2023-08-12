@@ -64,13 +64,13 @@ schedule_jump_params:
   n_sample: 1
   jump_length: 10
   jump_n_sample: 1
-eta: 0
+eta: 20
 data:
   eval:
     paper_face_mask:
       mask_loader: true
-      gt_path: ./data/eval/gt
-      mask_path: ./data/eval/mask/genhalf
+      gt_path: ./data/fun/gt
+      mask_path: ./data/fun/mask
       image_size: 256
       class_cond: false
       deterministic: true
@@ -83,8 +83,8 @@ data:
       offset: 0
       max_len: 100
       paths:
-        srs: ./log/step_250_1_10_1/eval/half/time/inpainted
-        lrs: ./log/step_250_1_10_1/eval/half/time/gt_masked
-        gts: ./log/step_250_1_10_1/eval/half/time/gt
-        gt_keep_masks: ./log/step_250_1_10_1/eval/half/time/gt_keep_mask
-        reverse_processing: reverse_processing/step_250_1_10_1/eval/half/reverse_processing_time
+        srs: ./log/step_250_1_10_1/fun/half/tmp/inpainted
+        lrs: ./log/step_250_1_10_1/fun/half/tmp/gt_masked
+        gts: ./log/step_250_1_10_1/fun/half/tmp/gt
+        gt_keep_masks: ./log/step_250_1_10_1/fun/half/tmp/gt_keep_mask
+        reverse_processing: reverse_processing/step_250_1_10_1/fun/half/reverse_processing_tmp

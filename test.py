@@ -30,7 +30,7 @@ import time
 from PIL import Image
 
 import conf_mgt
-from utils import yamlread, Dis_Transform
+from utils import yamlread, Dis_Transform, Parameter
 from guided_diffusion import dist_util
 import numpy as np
 
@@ -155,11 +155,11 @@ def main(conf: conf_mgt.Default_Conf):
             print(factor)
 
             ####################################### dense
-            # maxm = np.max(weight_mask)
-            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 2
-            # weight_mask = weight_mask * (1 - factor) + factor
-            # weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
-            # model_kwargs["weight_mask"] = weight_mask
+            maxm = np.max(weight_mask)
+            weight_mask = (np.transpose(weight_mask, (2, 0, 1)) / maxm) ** 2
+            weight_mask = weight_mask * (1 - 0.95) + 0.95
+            weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            model_kwargs["weight_mask"] = weight_mask
 
             ####################################### fixed_eta
             # maxm = np.max(weight_mask)
@@ -177,14 +177,14 @@ def main(conf: conf_mgt.Default_Conf):
             # model_kwargs["weight_mask"] = weight_mask
 
             ####################################### fun_test
-            maxm = np.max(weight_mask)
-            weight_mask = (np.transpose(weight_mask, (2, 0, 1)))
-            # weight_mask = np.random.random_integers(0, 100, weight_mask.shape)
-            weight_mask = np.zeros_like(weight_mask)
-            weight_mask[:, ::2, ::2] = 1
-            weight_mask[:, 1::2, 1::2] = 1
-            weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
-            weight_mask = th.where(weight_mask % 2 == 0, 0.3, 1.0) * 1.0
+            # maxm = np.max(weight_mask)
+            # weight_mask = (np.transpose(weight_mask, (2, 0, 1)))
+            # # weight_mask = np.random.random_integers(0, 100, weight_mask.shape)
+            # weight_mask = np.zeros_like(weight_mask)
+            # weight_mask[:, ::2, ::2] = 1
+            # weight_mask[:, 1::2, 1::2] = 1
+            # weight_mask = torch.Tensor(weight_mask).to(device).unsqueeze(0)
+            # weight_mask = th.where(weight_mask % 2 == 0, 0.3, 1.0) * 1.0
 
             model_kwargs["weight_mask"] = weight_mask
 
@@ -238,4 +238,9 @@ if __name__ == "__main__":
     conf_arg = conf_mgt.conf_base.Default_Conf()
     conf_arg.update(yamlread(args.get('conf_path')))
     conf_arg.update({'withp': args.get('withp')})
+
+    # for x in range(0, 256-128+1, 256):
+    #     for y in range(128, 256-64+1, 32):
+    #         conf_arg = Parameter.change(x, y, 64, 256, conf_arg)
+    #         print(conf_arg)
     main(conf_arg)

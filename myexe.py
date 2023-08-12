@@ -307,12 +307,5 @@ import utils.mask
 # plt.savefig('line_chart.png')
 # plt.show()
 
-###################################################################################################### index
-width = 32
-startx = 128
-starty = 128
-tmptensor = torch.ones([1, 3, 256, 256])
-index = (0, slice(0, 3), slice(startx, startx + width), slice(starty, starty + width))
-tmptensor[index] = 0
-print(index)
-print(tmptensor)
+##################################################################### calculate nn
+

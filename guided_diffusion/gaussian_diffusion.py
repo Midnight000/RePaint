@@ -528,44 +528,24 @@ class GaussianDiffusion:
         sample = out["mean"] + nonzero_mask * \
                  th.exp(0.5 * out["log_variance"]) * noise
         if t > 0:
-        # ######################################### edge detection sampling
-        #     shapen = Blur_Shapen.Sharpen(1)
-        #     partial = torch.clamp(shapen((out["pred_xstart"]+1)/2), 0, 1)
-        #     pil_image = partial.squeeze().cpu().numpy().transpose(1, 2, 0)
-        #     pil_image = Image.fromarray(np.uint8(pil_image * 255))
-        #     partial = th.floor((1-partial) * (t - 1))
-        #     partial = th.where(partial < 0, 0, partial)
-        #     partial = partial.to(th.long)
-        #     img_mid = out["pred_xstart"] * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
-        #               + out["eps"] * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
-        #     sqrt_alphas = th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[t - 1].expand(partial.shape) /
-        #                           to_tensor(self.alphas_cumprod, partial.device)[partial])
-        #     sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t - 1] * (
-        #         th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t - 1] -
-        #                 to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
-        #     sample = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(img_mid)
-        #
-        #     directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(
-        #         image_id)
-        #     make_dirs(directory)
-        #     full_p1 = os.path.join(directory, 'edge' + '_' + str(counter).zfill(6) + '.jpg')
-        #     pil_image.save(full_p1)
-        # ############################################################
-
-        # ######################################### repaint sampling
             if not conf["new"]:
-                partial = model_kwargs['weight_mask'] * (0.5 + 0.5 * (1 - t/int(conf.pget("schedule_jump_params.t_T"))))
-                partial = th.floor(partial * (t-2))
+                # time_based
+                partial = model_kwargs['weight_mask'] * (0.8 + 0.2 * (1 - t/int(conf.pget("schedule_jump_params.t_T"))))
+                partial = partial * (t-2)
                 partial = th.where(partial < 0, 0, partial)
                 partial = partial.to(th.long)
 
                 ######################################################################### assumption2
-                # width = conf.pget('assumption.width')
-                # startx = conf.pget('assumption.startx')
-                # starty = conf.pget('assumption.starty')
-                # tmptensor = torch.ones([1, 3, 256, 256])
-                # index = (0, slice(0, 3), slice(startx, startx + width), slice(starty, starty + width))
-                # tmptensor[index] = 0
+                # partial = model_kwargs['weight_mask']
+                # partial = partial.fill_(0.85 * t.item()).to(th.long)
+                # partial = th.where(partial < 0, 0, partial)
+                # width = conf.pget('assumption2.width')
+                # height = conf.pget('assumption2.height')
+                # startx = conf.pget('assumption2.startx')
+                # starty = conf.pget('assumption2.starty')
+                # index = (0, slice(0, 3), slice(startx, startx + height), slice(starty, starty + width))
+                # partial[index] = t - 1
+                #########################################################################
 
                 img_mid = out["pred_xstart"] * th.sqrt(to_tensor(self.alphas_cumprod, partial.device)[partial]) \
                           + out["eps"] * th.sqrt(to_tensor(1 - self.alphas_cumprod, partial.device)[partial])
@@ -574,7 +554,7 @@ class GaussianDiffusion:
                 sqrt_betas = to_tensor(self.sqrt_alphas_cumprod, partial.device)[t-1] * (
                     th.sqrt(to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[t-1] -
                             to_tensor(self.betas_multi_rec_alphas_cumprod_cumsum, partial.device)[partial]))
-                sample = sqrt_alphas * img_mid + sqrt_betas * th.randn_like(img_mid)
+                sample = sqrt_alphas * img_mid + 1.2 * sqrt_betas * th.randn_like(img_mid)
         # ############################################################
 
         # ######################################### new sampling(t smaller, mid bigger)
@@ -777,28 +757,28 @@ class GaussianDiffusion:
 
                         yield out
                         # 观测每一步的图像和对应的预测x0
-                        # directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(
-                        #     image_id)
-                        # make_dirs(directory)
-                        #
-                        # # subfold = 'withp' if conf.pget('withp') else 'withoutp'
-                        # img = out["sample"]
-                        # img = ((img + 1) * 127.5).clamp(0, 255).to(th.uint8)
-                        # img = img.permute(0, 2, 3, 1)
-                        # img = img.contiguous().squeeze()
-                        # img = img.cpu().numpy()
-                        # img = Image.fromarray(img, mode='RGB')
-                        # full_p1 = os.path.join(directory, 'img' + '_' + str(counter).zfill(6) + '.jpg')
-                        # img.save(full_p1)
-                        #
-                        # tmp_pred = out["pred_xstart"]
-                        # tmp_pred = ((tmp_pred + 1) * 127.5).clamp(0, 255).to(th.uint8)
-                        # tmp_pred = tmp_pred.permute(0, 2, 3, 1)
-                        # tmp_pred = tmp_pred.contiguous().squeeze()
-                        # tmp_pred = tmp_pred.cpu().numpy()
-                        # tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
-                        # full_p2 = os.path.join(directory, 'pre' + '_' + str(counter).zfill(6) + '.jpg')
-                        # tmp_pred.save(full_p2)
+                        directory = conf.pget('data.eval.paper_face_mask.paths.reverse_processing') + '/' + str(
+                            image_id)
+                        make_dirs(directory)
+
+                        # subfold = 'withp' if conf.pget('withp') else 'withoutp'
+                        img = out["sample"]
+                        img = ((img + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        img = img.permute(0, 2, 3, 1)
+                        img = img.contiguous().squeeze()
+                        img = img.cpu().numpy()
+                        img = Image.fromarray(img, mode='RGB')
+                        full_p1 = os.path.join(directory, 'img' + '_' + str(counter).zfill(6) + '.jpg')
+                        img.save(full_p1)
+
+                        tmp_pred = out["pred_xstart"]
+                        tmp_pred = ((tmp_pred + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        tmp_pred = tmp_pred.permute(0, 2, 3, 1)
+                        tmp_pred = tmp_pred.contiguous().squeeze()
+                        tmp_pred = tmp_pred.cpu().numpy()
+                        tmp_pred = Image.fromarray(tmp_pred, mode='RGB')
+                        full_p2 = os.path.join(directory, 'pre' + '_' + str(counter).zfill(6) + '.jpg')
+                        tmp_pred.save(full_p2)
                         #######################
 
                 else:
